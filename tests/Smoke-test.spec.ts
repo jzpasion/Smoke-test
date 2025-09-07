@@ -52,8 +52,10 @@ test.describe("Minimum Requirements", () => {
     await page.goto(URL);
     for (const btn of buttons) {
       const btnOption = await page.getByRole("link", { name: btn.locator });
-      expect(await btnOption.isVisible()).toBe(true);
-      expect(await btnOption.isEnabled()).toBe(true);
+
+      await btnOption.waitFor({ state: "visible", timeout: 3000 });
+      await expect(btnOption).toBeVisible();
+      await expect(btnOption).toBeEnabled();
 
       await page.getByRole("link", { name: btn.locator }).click();
       const pagePromiseOpened = await page.waitForEvent("popup");
