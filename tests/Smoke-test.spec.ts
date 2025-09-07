@@ -2,36 +2,84 @@ import { test, expect } from "@playwright/test";
 
 const URL = "https://www.equ.ai";
 
-test("Http Response is OK (200) and no Console Error on Log", async ({
-  page,
-}) => {
-  const logErrors: string[] = [];
+interface IbuttonNav {
+  locator: string;
+  expectedOutput: string;
+}
 
-  const pageLoad = await page.goto(URL);
+test.describe("Minimum Requirements", () => {
+  test("Http Response is OK (200) and no Console Error on Log", async ({
+    page,
+  }) => {
+    const logErrors: string[] = [];
 
-  expect(pageLoad?.status()).toBe(200);
+    const pageLoad = await page.goto(URL);
 
-  page.on("console", (msg) => {
-    if (msg.type() == "error") {
-      logErrors.push(msg.text());
+    expect(pageLoad?.status()).toBe(200);
+
+    page.on("console", (log) => {
+      if (log.type() == "error") {
+        logErrors.push(log.text());
+      }
+    });
+
+    expect(logErrors).toHaveLength(0);
+  });
+
+  test("Page contains Equmenopolis", async ({ page }) => {
+    await page.goto(URL);
+    const pageTitle = await page.title();
+
+    const forTesting = pageTitle;
+    // console.log(pageTitle);
+
+    await expect(pageTitle).toContain(forTesting);
+  });
+
+  test("CTA Buttons", async ({ page }) => {
+    let buttons: IbuttonNav[] = [
+      { locator: "About Us", expectedOutput: "https://www.equ.ai/ja/company" },
+      {
+        locator: "See Open Positions",
+        expectedOutput: "https://www.equ.ai/ja/careers",
+      },
+      {
+        locator: "Learn More",
+        expectedOutput: "https://www.equ.ai/ja/langx",
+      },
+    ];
+
+    await page.goto(URL);
+    for (const btn of buttons) {
+      const btnOption = await page.getByRole("link", { name: btn.locator });
+      expect(await btnOption.isVisible()).toBe(true);
+      expect(await btnOption.isEnabled()).toBe(true);
+
+      await page.getByRole("link", { name: btn.locator }).click();
+      const pagePromiseOpened = await page.waitForEvent("popup");
+      const openedPage = pagePromiseOpened;
+
+      expect(openedPage.url()).toBe(btn.expectedOutput);
+      await openedPage.close();
     }
   });
 
-  expect(logErrors).toHaveLength(0);
-});
+  test("Hero Section renders expected copy", async ({ page }) => {
+    await page.goto(URL);
 
-test("Page contains Equmenopolis", async ({ page }) => {
-  await page.goto("https://www.equ.ai");
-  const pageTitle = await page.title();
+    const divContent = await page
+      .getByRole("article")
+      .locator("div")
+      .filter({ hasText: "peopleCareers" })
+      .first();
 
-  const forTesting = pageTitle;
-  // console.log(pageTitle);
+    const divText = await divContent.innerText();
+    expect(divText).toContain("Contact");
+  });
 
-  await expect(pageTitle).toContain(forTesting);
-});
+  test("Home page screen shot", async ({ page }) => {
+    await page.goto(URL);
 
-test("Home page screen shot", async ({ page }) => {
-  await page.goto("https://www.equ.ai");
-
-  await page.screenshot({ path: "artifacts/HomePage.png", fullPage: true });
+    await page.screenshot({ path: "artifacts/HomePage.png", fullPage: true });
+  });
 });
