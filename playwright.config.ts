@@ -34,11 +34,13 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    // {
-    //   name: "Mobile Safari",
-    //   use: { ...devices["iPhone 12"] },
-    // },
+    /* Test against mobile viewports. */
+    {
+      name: "Mobile Chrome",
+      use: { ...devices["Galaxy S24"] },
+    },
 
+    /* Test against branded browsers. */
     {
       name: "Google Chrome",
       use: { ...devices["Desktop Chrome"], channel: "chrome" },

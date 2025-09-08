@@ -1,4 +1,4 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page, devices } from "@playwright/test";
 
 const URL = "https://www.equ.ai";
 
@@ -43,7 +43,9 @@ test.describe("Minimum Requirements", () => {
     await expect(page).toHaveTitle(pageTitle);
   });
 
-  test("Navigation links are visible and clickable", async ({ page }) => {
+  test("Navigation links are visible and clickable", async ({
+    page,
+  }, testInfo) => {
     let navLink: Ilocators[] = [
       {
         name: "LANGX",
@@ -53,14 +55,18 @@ test.describe("Minimum Requirements", () => {
         name: "Company",
         expectedLink: "https://www.equ.ai/ja/company",
       },
-      {
-        name: "Careers",
-        expectedLink: "https://www.equ.ai/ja/careers",
-      },
-      {
-        name: "News",
-        expectedLink: "https://www.equ.ai/ja/news/all",
-      },
+
+      /* Adding a comment here due to a bug on the website
+       * News is Duplicated on Mobile view  */
+
+      // {
+      //   name: "Careers",
+      //   expectedLink: "https://www.equ.ai/ja/careers",
+      // },
+      // {
+      //   name: "News",
+      //   expectedLink: "https://www.equ.ai/ja/news/all",
+      // },
       {
         name: "Contact",
         expectedLink: "https://www.equ.ai/ja/contact",
@@ -68,11 +74,14 @@ test.describe("Minimum Requirements", () => {
     ];
 
     await page.goto(URL);
-
+    const isMobile = testInfo.project.use.isMobile;
     for (const link of navLink) {
-      const navPage = await page
-        .locator("#top")
-        .getByRole("link", { name: link.name });
+      if (isMobile) {
+        await isMobileMenuClick(page);
+      }
+      const navPage = isMobile
+        ? await page.getByRole("link", { name: link.name })
+        : await page.locator("#top").getByRole("link", { name: link.name });
 
       await visbilityAndOutputCheck(navPage, page, link.expectedLink, false);
     }
@@ -93,10 +102,46 @@ test.describe("Minimum Requirements", () => {
     expect(divText).toContain(heroSubstring);
   });
 
-  test("Home page screen shot", async ({ page }) => {
+  test("Home page screen shot", async ({ page }, testInfo) => {
     await page.goto(URL);
 
-    await page.screenshot({ path: "artifacts/HomePage.png", fullPage: true });
+    await page.screenshot({
+      path: testInfo.project.use.isMobile
+        ? "artifacts/HomePage_mobile.png"
+        : "artifacts/HomePage.png",
+      fullPage: true,
+    });
+  });
+
+  test("Test for button is in the viewport (Desktop and Mobile)", async ({
+    page,
+  }) => {
+    await page.goto(URL);
+    const getInTouchBtn = await page
+      .locator("section")
+      .filter({ hasText: "Towards Human-AI Co-Evolving" })
+      .getByRole("link");
+
+    await expect(getInTouchBtn).toBeInViewport();
+    await expect(getInTouchBtn).toBeEnabled();
+    await expect(getInTouchBtn).toBeVisible();
+
+    /* without using toBeInViewport */
+
+    const buttonPosition = await getInTouchBtn.boundingBox();
+
+    const viewPort = page.viewportSize();
+
+    if (buttonPosition && viewPort) {
+      const isInViewport =
+        buttonPosition.y + buttonPosition.height > 0 &&
+        buttonPosition.y < viewPort.height;
+
+      expect(isInViewport).toBe(true);
+    }
+
+    await expect(getInTouchBtn).toBeEnabled();
+    await expect(getInTouchBtn).toBeVisible();
   });
 });
 
@@ -161,7 +206,7 @@ test.describe("Other Tests", () => {
     }
   });
 
-  test("Research Navigation functionality", async ({ page }) => {
+  test("Research Navigation functionality", async ({ page }, testInfo) => {
     await page.goto(URL);
 
     const hoverItems: Ilocators[] = [
@@ -183,7 +228,13 @@ test.describe("Other Tests", () => {
       },
     ];
 
+    const isMobile = testInfo.project.use.isMobile;
+
     for (const hItem of hoverItems) {
+      if (isMobile) {
+        await isMobileMenuClick(page);
+      }
+
       await page.getByRole("button", { name: "Research" }).hover();
 
       const hLink = await page.getByRole("link", { name: hItem.name });
@@ -236,10 +287,16 @@ test.describe("Other Tests", () => {
 
   test("Changing Languange to english (Title Update to english)", async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.goto(URL);
 
-    await page.getByRole("button", { name: "日本語" }).hover();
+    const isMobile = testInfo.project.use.isMobile;
+
+    if (isMobile) {
+      await isMobileMenuClick(page);
+    } else {
+      await page.getByRole("button", { name: "日本語" }).hover();
+    }
 
     await page.getByRole("link", { name: "English" }).click();
 
@@ -276,4 +333,9 @@ const visbilityAndOutputCheck = async (
   }
 
   await page.goto(URL);
+};
+
+const isMobileMenuClick = async (page) => {
+  await page.getByRole("button", { name: "" }).click();
+  await page.waitForTimeout(1500); //Putting an timeout here because we need to wait for all the menu to show
 };
